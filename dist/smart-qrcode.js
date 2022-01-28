@@ -769,7 +769,7 @@
         }
         function L(l, u, i, t, r, o, f, c) {
             var s, a, v, y = i.props, p = u.props, d = u.type, _ = 0;
-            if ("svg" === d && (r = !0), null != o) for (;_ < o.length; _++) if ((s = o[_]) && (s === l || (d ? s.localName == d : 3 == s.nodeType))) {
+            if ("svg" === d && (r = !0), null != o) for (;_ < o.length; _++) if ((s = o[_]) && "setAttribute" in s == !!d && (d ? s.localName === d : 3 === s.nodeType)) {
                 l = s, o[_] = null;
                 break;
             }
@@ -790,7 +790,7 @@
                     for (r in l) t && "function" != typeof l[r] || "children" === r || "key" === r || "value" === r || "checked" === r || u[r] === l[r] || H(n, r, l[r], u[r], i);
                 }(l, p, y, r, c), v) u.__k = []; else if (_ = u.props.children, w(l, Array.isArray(_) ? _ : [ _ ], u, i, t, r && "foreignObject" !== d, o, f, o ? o[0] : i.__k && k(i, 0), c), 
                 null != o) for (_ = o.length; _--; ) null != o[_] && h(o[_]);
-                c || ("value" in p && void 0 !== (_ = p.value) && (_ !== l.value || "progress" === d && !_) && H(l, "value", _, y.value, !1), 
+                c || ("value" in p && void 0 !== (_ = p.value) && (_ !== y.value || _ !== l.value || "progress" === d && !_) && H(l, "value", _, y.value, !1), 
                 "checked" in p && void 0 !== (_ = p.checked) && _ !== l.checked && H(l, "checked", _, y.checked, !1));
             }
             return l;
@@ -858,13 +858,11 @@
             }(hooks_module_w, n);
         }
         function hooks_module_x() {
-            hooks_module_i.forEach((function(t) {
-                if (t.__P) try {
-                    t.__H.__h.forEach(hooks_module_g), t.__H.__h.forEach(hooks_module_j), t.__H.__h = [];
-                } catch (u) {
-                    t.__H.__h = [], l.__e(u, t.__v);
-                }
-            })), hooks_module_i = [];
+            for (var t; t = hooks_module_i.shift(); ) if (t.__P) try {
+                t.__H.__h.forEach(hooks_module_g), t.__H.__h.forEach(hooks_module_j), t.__H.__h = [];
+            } catch (u) {
+                t.__H.__h = [], l.__e(u, t.__v);
+            }
         }
         l.__b = function(n) {
             hooks_module_u = null, hooks_module_c && hooks_module_c(n);
@@ -895,17 +893,19 @@
             })), hooks_module_a && hooks_module_a(t, u);
         }, l.unmount = function(t) {
             hooks_module_v && hooks_module_v(t);
-            var u = t.__c;
-            if (u && u.__H) try {
-                u.__H.__.forEach(hooks_module_g);
-            } catch (t) {
-                l.__e(t, u.__v);
-            }
+            var u, r = t.__c;
+            r && r.__H && (r.__H.__.forEach((function(n) {
+                try {
+                    hooks_module_g(n);
+                } catch (n) {
+                    u = n;
+                }
+            })), u && l.__e(u, r.__v));
         };
         var hooks_module_b = "function" == typeof requestAnimationFrame;
         function hooks_module_g(n) {
-            var t = hooks_module_u;
-            "function" == typeof n.__c && n.__c(), hooks_module_u = t;
+            var t = hooks_module_u, r = n.__c;
+            "function" == typeof r && (n.__c = void 0, r()), hooks_module_u = t;
         }
         function hooks_module_j(n) {
             var t = hooks_module_u;
@@ -1630,7 +1630,7 @@
                             objectIDs.set(obj, uid);
                         }
                         return uid;
-                    }(val) + "]" : val;
+                    }(val) + "]" : "undefined" != typeof window && val instanceof window.Element || null !== val && "object" == typeof val && 1 === val.nodeType && "object" == typeof val.style && "object" == typeof val.ownerDocument ? {} : val;
                 }));
             } catch (err) {
                 throw new Error("Arguments not serializable -- can not be used to memoize");
@@ -1658,7 +1658,12 @@
                 }
                 var cache;
                 cache = thisNamespace ? (thisCache = thisCache || new weakmap_CrossDomainSafeWeakMap).getOrSet(this, getEmptyObject) : simpleCache = simpleCache || {};
-                var cacheKey = serializeArgs(args);
+                var cacheKey;
+                try {
+                    cacheKey = serializeArgs(args);
+                } catch (_unused) {
+                    return method.apply(this, arguments);
+                }
                 var cacheResult = cache[cacheKey];
                 if (cacheResult && cacheTime && Date.now() - cacheResult.time < cacheTime) {
                     delete cache[cacheKey];
@@ -2400,7 +2405,7 @@
             }), children));
         }
         function callGraphQL(_ref5) {
-            var name = _ref5.name, _ref5$variables = _ref5.variables, _ref5$headers = _ref5.headers;
+            var name = _ref5.name, _ref5$variables = _ref5.variables, _ref5$headers = _ref5.headers, _ref5$returnErrorObje = _ref5.returnErrorObject, returnErrorObject = void 0 !== _ref5$returnErrorObje && _ref5$returnErrorObje;
             return request({
                 url: "/graphql?" + name,
                 method: "POST",
@@ -2419,6 +2424,7 @@
                     getLogger().warn("graphql_" + name + "_error", {
                         err: message
                     });
+                    if (returnErrorObject) throw errors[0];
                     throw new Error(message);
                 }
                 if (200 !== status) {
@@ -2882,6 +2888,17 @@
             tertiary: "#009EE3",
             quaternary: "#009EE3"
         };
+        var multiblanco_logo_LOGO_COLORS;
+        (multiblanco_logo_LOGO_COLORS = {}).default = {
+            primary: "#373535",
+            secondary: "#1866AB"
+        }, multiblanco_logo_LOGO_COLORS.white = {
+            primary: "#ffffff",
+            secondary: "#ffffff"
+        }, multiblanco_logo_LOGO_COLORS.black = {
+            primary: "#373535",
+            secondary: "#1866AB"
+        };
         function ErrorMessage(_ref) {
             var resetFunc = _ref.resetFunc;
             return v("div", {
@@ -3131,7 +3148,7 @@
             logger.addTrackingBuilder((function() {
                 var _ref2;
                 return (_ref2 = {}).state_name = "smart_button", _ref2.context_type = "EC-Token", 
-                _ref2.context_id = orderID, _ref2.button_session_id = buttonSessionID, _ref2.button_version = "5.0.76", 
+                _ref2.context_id = orderID, _ref2.button_session_id = buttonSessionID, _ref2.button_version = "5.0.80", 
                 _ref2.user_id = buttonSessionID, _ref2;
             }));
             (function() {
@@ -3270,7 +3287,7 @@
                         }));
                     }
                 });
-            }(), state = _useXProps.state, errorText = _useXProps.errorText, setState = _useXProps.setState, close = _useXProps.close;
+            }(), state = _useXProps.state, errorText = _useXProps.errorText, setState = _useXProps.setState, close = _useXProps.close, cancel = _useXProps.onCancel;
             var survey = function() {
                 var _useState = hooks_module_l({
                     isEnabled: !1,
@@ -3363,15 +3380,15 @@
                 }));
             };
             var onCloseClick = function() {
-                if ("qr_default" !== state) close(); else if (survey.isEnabled) {
+                if ("qr_default" !== state) cancel(); else if (survey.isEnabled) {
                     var _logger$info$track;
                     qrcard_logger.info("VenmoDesktopPay_qrcode_survey").track((_logger$info$track = {}, 
                     _logger$info$track.state_name = "smart_button", _logger$info$track.context_type = "EC-Token", 
                     _logger$info$track.context_id = window.xprops.orderID, _logger$info$track.transition_name = "desktop_exit_survey_selection_submitted", 
                     _logger$info$track.desktop_exit_survey_reason = survey.reason, _logger$info$track)).flush();
-                    close();
+                    cancel();
                 }
-                return close();
+                return cancel();
             };
             var errorMessage = v(ErrorMessage, {
                 message: errorText,

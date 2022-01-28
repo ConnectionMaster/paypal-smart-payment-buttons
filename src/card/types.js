@@ -7,8 +7,9 @@ export type SetupCardOptions = {|
 
 export type Card = {|
     number : string,
-    cvv : string,
-    expiry : string
+    cvv? : string,
+    expiry? : string,
+    name? : string
 |};
 
 export type FieldStyle = {|
@@ -63,7 +64,8 @@ export type CardStyle = {| |};
 export type CardPlaceholder = {|
     number? : string,
     expiry? : string,
-    cvv? : string
+    cvv? : string,
+    name? : string
 |};
 
 export type CardType = {|
@@ -102,9 +104,14 @@ export type CardCvvChangeEvent = {|
     cardCvv : string
 |};
 
+export type CardNameChangeEvent = {|
+    event : InputEvent,
+    cardName : string
+|};
+
 export type FieldValidity = {|
     isValid : boolean,
-    isPossibleValid : boolean
+    isPotentiallyValid : boolean
 |};
 
 export type CardNavigation = {|
@@ -118,7 +125,7 @@ export type InputState = {|
     cursorStart : number,
     cursorEnd : number,
     keyStrokeCount : number,
-    isPossibleValid : boolean,
+    isPotentiallyValid : boolean,
     isValid : boolean,
     contentPasted? : boolean
 |};
@@ -126,4 +133,8 @@ export type InputState = {|
 export type InputOptions = {|
     inputState : InputState,
     validationFn : () => mixed
+|};
+
+export type ExtraFields = {|
+    billingAddress? : string
 |};

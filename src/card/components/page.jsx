@@ -5,13 +5,13 @@ import { h, render, Fragment } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 
 import { getBody } from '../../lib';
-import { setupExports, autoFocusOnFirstInput } from '../lib';
+import { setupExports, formatFieldValue, autoFocusOnFirstInput, filterExtraFields } from '../lib';
 import { CARD_FIELD_TYPE_TO_FRAME_NAME, CARD_FIELD_TYPE } from '../constants';
 import { submitCardFields } from '../interface';
 import { getCardProps, type CardProps } from '../props';
 import type { SetupCardOptions } from '../types';
 
-import { CardField, CardNumberField, CardCVVField, CardExpiryField } from './fields';
+import { CardField, CardNumberField, CardCVVField, CardExpiryField, CardNameField } from './fields';
 
 type PageProps = {|
     cspNonce : string,
@@ -19,13 +19,18 @@ type PageProps = {|
 |};
 
 function Page({ cspNonce, props } : PageProps) : mixed {
-    const { facilitatorAccessToken, style, placeholder, type, onChange, export: xport } = props;
+    const { facilitatorAccessToken, style, disableAutocomplete, placeholder, type, onChange, export: xport } = props;
 
     const [ fieldValue, setFieldValue ] = useState();
     const [ fieldValid, setFieldValid ] = useState(false);
     const [ fieldErrors, setFieldErrors ] = useState([]);
     const [ mainRef, setRef ] = useState();
+    const [ fieldGQLErrors, setFieldGQLErrors ] = useState({ singleField: {}, numberField: [], expiryField: [], cvvField: [] });
 
+    let autocomplete;
+    if (disableAutocomplete) {
+        autocomplete = 'off';
+    }
 
     const getFieldValue = () => {
         return fieldValue;
@@ -35,10 +40,43 @@ function Page({ cspNonce, props } : PageProps) : mixed {
         return fieldValid;
     };
 
+    const setGqlErrors = (errorData : {| field : string, errors : [] |}) => {
+        const { errors } = errorData;
+
+        const errorObject = { ...fieldGQLErrors };
+
+        if (type === CARD_FIELD_TYPE.SINGLE) {
+            errorObject.singleField = { ...errorData };
+        } else if (errors && errors.length) {
+            switch (type) {
+            case CARD_FIELD_TYPE.NUMBER:
+                errorObject.numberField = [ ...errors ];
+                break;
+            case CARD_FIELD_TYPE.EXPIRY:
+                errorObject.expiryField = [ ...errors ];
+                break;
+            case CARD_FIELD_TYPE.CVV:
+                errorObject.cvvField = [ ...errors ];
+                break;
+            case CARD_FIELD_TYPE.NAME:
+                errorObject.nameField = [ ...errors ];
+                break;
+            default:
+                break;
+            }
+        }
+
+        setFieldGQLErrors(errorObject);
+    };
+
+    const resetGQLErrors = () => {
+        setFieldGQLErrors({ singleField: {}, numberField: [], expiryField: [], cvvField: [], nameField: [] });
+    };
+
     useEffect(() => {
         onChange({
-            valid:    fieldValid,
-            errors: fieldErrors
+            isValid:  fieldValid,
+            errors:   fieldErrors
         });
     }, [ fieldValid, fieldErrors ]);
 
@@ -50,20 +88,26 @@ function Page({ cspNonce, props } : PageProps) : mixed {
         setupExports({
             name: CARD_FIELD_TYPE_TO_FRAME_NAME[type],
             isFieldValid,
-            getFieldValue
+            getFieldValue,
+            setGqlErrors,
+            resetGQLErrors
         });
 
         xport({
-            submit: () => {
-                return submitCardFields({ facilitatorAccessToken });
+            submit: (extraData) => {
+                const extraFields = filterExtraFields(extraData);
+                return submitCardFields({ facilitatorAccessToken, extraFields });
             }
         });
     }, [ fieldValid, fieldValue ]);
 
     const onFieldChange = ({ value, valid, errors }) => {
-        setFieldValue({ ...value });
+        const newFieldValue = formatFieldValue(value);
+        
+        setFieldValue(newFieldValue);
         setFieldErrors([ ...errors ]);
         setFieldValid(valid);
+        resetGQLErrors();
     };
 
     return (
@@ -96,41 +140,68 @@ function Page({ cspNonce, props } : PageProps) : mixed {
             {
                 (type === CARD_FIELD_TYPE.SINGLE)
                     ? <CardField
-                        cspNonce={ cspNonce }
-                        onChange={ onFieldChange }
-                        styleObject={ style }
-                        placeholder={ placeholder }
-                        autoFocusRef={ (ref) => setRef(ref.current.base) }
+                            gqlErrorsObject={ fieldGQLErrors.singleField }
+                            cspNonce={ cspNonce }
+                            autocomplete={ autocomplete }
+                            onChange={ onFieldChange }
+                            styleObject={ style }
+                            placeholder={ placeholder }
+                            autoFocusRef={ (ref) => setRef(ref.current.base) }
                     /> : null
             }
 
             {
                 (type === CARD_FIELD_TYPE.NUMBER)
                     ? <CardNumberField
-                        cspNonce={ cspNonce }
-                        onChange={ onFieldChange }
-                        styleObject={ style }
-                        placeholder={ placeholder }
+                            ref={ mainRef }
+                            gqlErrors={ fieldGQLErrors.numberField }
+                            cspNonce={ cspNonce }
+                            autocomplete={ autocomplete }
+                            onChange={ onFieldChange }
+                            styleObject={ style }
+                            placeholder={ placeholder }
+                            autoFocusRef={ (ref) => setRef(ref.current.base) }
                     /> : null
             }
 
             {
                 (type === CARD_FIELD_TYPE.CVV)
                     ? <CardCVVField
-                        cspNonce={ cspNonce }
-                        onChange={ onFieldChange }
-                        styleObject={ style }
-                        placeholder={ placeholder }
+                            ref={ mainRef }
+                            gqlErrors={ fieldGQLErrors.cvvField }
+                            cspNonce={ cspNonce }
+                            autocomplete={ autocomplete }
+                            onChange={ onFieldChange }
+                            styleObject={ style }
+                            placeholder={ placeholder }
+                            autoFocusRef={ (ref) => setRef(ref.current.base) }
                     /> : null
             }
 
             {
                 (type === CARD_FIELD_TYPE.EXPIRY)
                     ? <CardExpiryField
-                        cspNonce={ cspNonce }
-                        onChange={ onFieldChange }
-                        styleObject={ style }
-                        placeholder={ placeholder }
+                            ref={ mainRef }
+                            gqlErrors={ fieldGQLErrors.expiryField }
+                            cspNonce={ cspNonce }
+                            autocomplete={ autocomplete }
+                            onChange={ onFieldChange }
+                            styleObject={ style }
+                            placeholder={ placeholder }
+                            autoFocusRef={ (ref) => setRef(ref.current.base) }
+                    /> : null
+            }
+
+            {
+                (type === CARD_FIELD_TYPE.NAME)
+                    ? <CardNameField
+                            ref={ mainRef }
+                            gqlErrors={ fieldGQLErrors.nameField }
+                            cspNonce={ cspNonce }
+                            onChange={ onFieldChange }
+                            styleObject={ style }
+                            placeholder={ placeholder }
+                            autoFocusRef={ (ref) => setRef(ref.current.base) }
                     /> : null
             }
         </Fragment>
@@ -144,4 +215,3 @@ export function setupCard({ cspNonce, facilitatorAccessToken } : SetupCardOption
 
     render(<Page cspNonce={ cspNonce } props={ props } />, getBody());
 }
- 

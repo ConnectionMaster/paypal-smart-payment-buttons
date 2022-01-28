@@ -4,12 +4,11 @@
 import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 
-import { checkCVV, removeNonDigits, defaultNavigation, defaultInputState, navigateOnKeyDown } from '../lib';
-import type { CardType, CardCvvChangeEvent, CardNavigation, FieldValidity, InputState, InputEvent } from '../types';
+import { checkName, defaultNavigation, defaultInputState, navigateOnKeyDown } from '../lib';
+import type { CardNameChangeEvent, CardNavigation, FieldValidity, InputState, InputEvent } from '../types';
 
-type CardCvvProps = {|
+type CardNameProps = {|
     name : string,
-    autocomplete? : string,
     ref : () => void,
     type : string,
     state? : InputState,
@@ -17,9 +16,8 @@ type CardCvvProps = {|
     placeholder : string,
     style : Object,
     maxLength : string,
-    cardType : CardType,
     navigation : CardNavigation,
-    onChange : (cvvEvent : CardCvvChangeEvent) => void,
+    onChange : (nameEvent : CardNameChangeEvent) => void,
     onFocus : (event : InputEvent) => void,
     onBlur : (event : InputEvent) => void,
     allowNavigation : boolean,
@@ -27,10 +25,9 @@ type CardCvvProps = {|
 |};
 
 
-export function CardCVV(
+export function CardName(
     {
-        name = 'cvv',
-        autocomplete = 'cc-csc',
+        name = 'name',
         navigation = defaultNavigation,
         allowNavigation = false,
         state,
@@ -43,15 +40,14 @@ export function CardCVV(
         onChange,
         onFocus,
         onBlur,
-        onValidityChange,
-        cardType
-    } : CardCvvProps
+        onValidityChange
+    } : CardNameProps
 ) : mixed {
     const [ inputState, setInputState ] : [ InputState, (InputState | InputState => InputState) => InputState ] = useState({ ...defaultInputState, ...state });
     const { inputValue, keyStrokeCount, isValid, isPotentiallyValid } = inputState;
 
     useEffect(() => {
-        const validity = checkCVV(inputValue, cardType);
+        const validity = checkName(inputValue);
         setInputState(newState => ({ ...newState, ...validity }));
     }, [ inputValue ]);
 
@@ -64,9 +60,8 @@ export function CardCVV(
         }
     }, [ isValid, isPotentiallyValid ]);
 
-    const setCvvValue : (InputEvent) => void = (event : InputEvent) : void => {
-        const { value : rawValue } = event.target;
-        const value = removeNonDigits(rawValue);
+    const setNameValue : (InputEvent) => void = (event : InputEvent) : void => {
+        const { value  } = event.target;
 
         setInputState({
             ...inputState,
@@ -75,7 +70,7 @@ export function CardCVV(
             keyStrokeCount:   keyStrokeCount + 1
         });
 
-        onChange({ event, cardCvv: value  });
+        onChange({ event, cardName: value  });
     };
 
     const onKeyDownEvent : (InputEvent) => void = (event : InputEvent) : void => {
@@ -105,8 +100,7 @@ export function CardCVV(
     return (
         <input
             name={ name }
-            autocomplete={ autocomplete }
-            inputmode='numeric'
+            inputmode='text'
             ref={ ref }
             type={ type }
             className={ className }
@@ -115,7 +109,7 @@ export function CardCVV(
             style={ style }
             maxLength={ maxLength }
             onKeyDown={ onKeyDownEvent }
-            onInput={ setCvvValue }
+            onInput={ setNameValue }
             onFocus={ onFocusEvent }
             onBlur={ onBlurEvent }
         />

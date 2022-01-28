@@ -5,7 +5,7 @@ import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 
 import {
-    maskDate,
+    formatDate,
     checkExpiry,
     removeNonDigits,
     removeDateMask,
@@ -18,6 +18,7 @@ import type { CardExpiryChangeEvent, CardNavigation, FieldValidity, InputState, 
 
 type CardExpiryProps = {|
     name : string,
+    autocomplete? : string,
     ref : () => void,
     type : string,
     state? : InputState,
@@ -37,6 +38,7 @@ type CardExpiryProps = {|
 export function CardExpiry(
     {
         name = 'expiry',
+        autocomplete = 'cc-exp',
         navigation = defaultNavigation,
         state,
         ref,
@@ -53,7 +55,7 @@ export function CardExpiry(
     } : CardExpiryProps
 ) : mixed {
     const [ inputState, setInputState ] : [ InputState, (InputState | InputState => InputState) => InputState ] = useState({ ...defaultInputState, ...state });
-    const { inputValue, maskedInputValue, keyStrokeCount, isValid, isPossibleValid } = inputState;
+    const { inputValue, maskedInputValue, keyStrokeCount, isValid, isPotentiallyValid, contentPasted } = inputState;
 
 
     useEffect(() => {
@@ -63,23 +65,23 @@ export function CardExpiry(
 
     useEffect(() => {
         if (typeof onValidityChange === 'function') {
-            onValidityChange({ isValid, isPossibleValid });
+            onValidityChange({ isValid, isPotentiallyValid });
         }
 
         if (allowNavigation && maskedInputValue && isValid) {
             navigation.next();
         }
-    }, [ isValid, isPossibleValid ]);
+    }, [ isValid, isPotentiallyValid ]);
 
     const setDateMask : (InputEvent) => void = (event : InputEvent) : void => {
         const { value : rawValue, selectionStart, selectionEnd } = event.target;
         const value = removeNonDigits(rawValue);
-        const mask = maskDate(value, rawValue);
+        const mask = formatDate(value, rawValue);
 
         let startCursorPosition = selectionStart;
         let endCursorPosition = selectionEnd;
 
-        if (mask.trim().slice(-1) === '/') {
+        if (mask.trim().slice(-1) === '/' || contentPasted) {
             startCursorPosition = mask.length;
             endCursorPosition = mask.length;
         }
@@ -90,6 +92,7 @@ export function CardExpiry(
             ...inputState,
             inputValue:       rawValue,
             maskedInputValue: mask,
+            contentPasted:    false,
             keyStrokeCount:   keyStrokeCount + 1
         });
 
@@ -116,7 +119,7 @@ export function CardExpiry(
             onFocus(event);
         }
         if (!isValid) {
-            setInputState({ ...inputState, isPossibleValid: true });
+            setInputState((newState) => ({ ...newState, isPotentiallyValid: true }));
         }
     };
 
@@ -125,13 +128,18 @@ export function CardExpiry(
             onBlur(event);
         }
         if (!isValid) {
-            setInputState({ ...inputState, isPossibleValid: false });
+            setInputState((newState) => ({ ...newState, isPotentiallyValid: false, contentPasted: false }));
         }
+    };
+
+    const onPasteEvent : (InputEvent) => void = () : void => {
+        setInputState((newState) => ({ ...newState,  contentPasted: true }));
     };
 
     return (
         <input
             name={ name }
+            autocomplete={ autocomplete }
             inputmode='numeric'
             ref={ ref }
             type={ type }
@@ -144,6 +152,7 @@ export function CardExpiry(
             onInput={ setDateMask }
             onFocus={ onFocusEvent }
             onBlur={ onBlurEvent }
+            onPaste={ onPasteEvent }
         />
     );
 }

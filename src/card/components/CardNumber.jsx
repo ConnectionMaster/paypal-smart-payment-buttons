@@ -35,6 +35,7 @@ function validateNavigation({ allowNavigation,  inputState } : {| allowNavigatio
 
 type CardNumberProps = {|
     name : string,
+    autocomplete? : string,
     ref : () => void,
     type : string,
     state? : InputState,
@@ -53,6 +54,7 @@ type CardNumberProps = {|
 export function CardNumber(
     {
         name = 'number',
+        autocomplete = 'cc-number',
         navigation = defaultNavigation,
         allowNavigation = false,
         state,
@@ -68,10 +70,10 @@ export function CardNumber(
         onValidityChange
     } : CardNumberProps
 ) : mixed {
-    const [ cardType, setCardType ] : [ CardType, (CardType) => mixed ] = useState(DEFAULT_CARD_TYPE);
+    const [ cardType, setCardType ] : [ CardType, (CardType) => CardType ] = useState(DEFAULT_CARD_TYPE);
     const [ inputState, setInputState ] : [ InputState, (InputState | InputState => InputState) => InputState ] = useState({ ...defaultInputState, ...state });
 
-    const { inputValue, maskedInputValue, cursorStart, cursorEnd, keyStrokeCount, isValid, isPossibleValid } = inputState;
+    const { inputValue, maskedInputValue, cursorStart, cursorEnd, keyStrokeCount, isValid, isPotentiallyValid, contentPasted } = inputState;
 
     useEffect(() => {
         const validity = checkCardNumber(inputValue, cardType);
@@ -81,14 +83,14 @@ export function CardNumber(
 
     useEffect(() => {
         if (typeof onValidityChange === 'function') {
-            onValidityChange({ isValid, isPossibleValid });
+            onValidityChange({ isValid, isPotentiallyValid });
         }
 
         if (validateNavigation({ allowNavigation, inputState })) {
             navigation.next();
         }
 
-    }, [ isValid, isPossibleValid ]);
+    }, [ isValid, isPotentiallyValid ]);
 
 
     const setValueAndCursor : (InputEvent) => void = (event : InputEvent) : void => {
@@ -105,7 +107,10 @@ export function CardNumber(
             endCursorPosition = cursorEnd;
         }
         
-        if (maskedInputValue.length !== maskedValue.length && maskedValue.length === selectionStart + 1) {
+        if (contentPasted) {
+            startCursorPosition = maskedValue.length;
+            endCursorPosition  = maskedValue.length;
+        } else if (maskedValue.length > maskedInputValue.length && maskedValue[selectionStart - 1] === ' ') {
             startCursorPosition += 1;
             endCursorPosition += 1;
         }
@@ -119,6 +124,7 @@ export function CardNumber(
             maskedInputValue: maskedValue,
             cursorStart:      startCursorPosition,
             cursorEnd:        endCursorPosition,
+            contentPasted:    false,
             keyStrokeCount:   keyStrokeCount + 1
         });
 
@@ -131,28 +137,29 @@ export function CardNumber(
         }
 
         const maskedValue = maskCard(inputValue);
-        const newState = { ...inputState, maskedInputValue: maskedValue };
+        const updatedState = { ...inputState, maskedInputValue: maskedValue };
         if (!isValid) {
-            newState.isPossibleValid = true;
+            updatedState.isPotentiallyValid = true;
         }
 
-        setInputState({ ...newState });
+        setInputState((newState) => ({ ...newState, ...updatedState }));
     };
 
     const onBlurEvent : (InputEvent) => void = (event : InputEvent) : void => {
-        const newState = { ...inputState };
+        const updatedState = { maskedInputValue, isPotentiallyValid, contentPasted: false };
 
         if (isValid) {
-            newState.maskedInputValue = maskValidCard(maskedInputValue);
+            updatedState.maskedInputValue = maskValidCard(maskedInputValue);
         } else {
-            newState.isPossibleValid = false;
+            updatedState.isPotentiallyValid = false;
         }
 
         if (typeof onBlur === 'function') {
             onBlur(event);
         }
 
-        setInputState({ ...newState, contentPasted: false });
+        setInputState((newState) => ({ ...newState, ...updatedState }));
+        
 
     };
 
@@ -163,13 +170,13 @@ export function CardNumber(
     };
 
     const onPasteEvent : (InputEvent) => void = () : void => {
-        const newState = { ...inputState, contentPasted: true };
-        setInputState(newState);
+        setInputState((newState) => ({ ...newState,  contentPasted: true }));
     };
 
     return (
         <input
             name={ name }
+            autocomplete={ autocomplete }
             inputmode='numeric'
             ref={ ref }
             type={ type }

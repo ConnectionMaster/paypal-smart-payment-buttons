@@ -21,20 +21,24 @@ import type {
     CardNumberChangeEvent,
     CardExpiryChangeEvent,
     CardCvvChangeEvent,
+    CardNameChangeEvent,
     FieldValidity,
-    CardNavigation
+    CardNavigation,
+    CardType
 } from '../types';
 import {
     CARD_ERRORS,
     DEFAULT_STYLE,
     DEFAULT_CARD_TYPE,
     DEFAULT_INPUT_STYLE,
-    DEFAULT_PLACEHOLDERS
+    DEFAULT_PLACEHOLDERS,
+    CARD_FIELD_TYPE
 } from '../constants';
 
 import { CardNumber } from './CardNumber';
 import { CardExpiry } from './CardExpiry';
 import { CardCVV } from './CardCVV';
+import { CardName } from './CardName';
 
 
 type CardFieldProps = {|
@@ -42,19 +46,21 @@ type CardFieldProps = {|
     onChange : ({| value : Card, valid : boolean, errors : [$Values<typeof CARD_ERRORS>] | [] |}) => void,
     styleObject : CardStyle,
     placeholder : {| number? : string, expiry? : string, cvv? : string  |},
-    autoFocusRef : (mixed) => void
+    autoFocusRef : (mixed) => void,
+    autocomplete? : string,
+    gqlErrorsObject : {| field : string, errors : [] |}
 |};
 
-export function CardField({ cspNonce, onChange, styleObject = {}, placeholder = {}, autoFocusRef } : CardFieldProps) : mixed {
-    const [ number, setNumber ] = useState('');
-    const [ cvv, setCvv ] = useState('');
-    const [ expiry, setExpiry ] = useState('');
-    const [ isValid, setIsValid ] = useState(true);
-    const [ numberValidity, setNumberValidity ] = useState(initFieldValidity);
-    const [ expiryValidity, setExpiryValidity ] = useState(initFieldValidity);
-    const [ cvvValidity, setCvvValidity ] = useState(initFieldValidity);
+export function CardField({ cspNonce, onChange, styleObject = {}, placeholder = {}, gqlErrorsObject = {}, autoFocusRef, autocomplete } : CardFieldProps) : mixed {
+    const [ number, setNumber ] : [ string, (string) => string ] = useState('');
+    const [ cvv, setCvv ] : [ string, (string) => string ] = useState('');
+    const [ expiry, setExpiry ] : [ string, (string) => string ] = useState('');
+    const [ isValid, setIsValid ] : [ boolean, (boolean) => boolean ] = useState(true);
+    const [ numberValidity, setNumberValidity ] : [ FieldValidity, (FieldValidity) => FieldValidity ] = useState(initFieldValidity);
+    const [ expiryValidity, setExpiryValidity ] : [ FieldValidity, (FieldValidity) => FieldValidity ] = useState(initFieldValidity);
+    const [ cvvValidity, setCvvValidity ] : [ FieldValidity, (FieldValidity) => FieldValidity ] = useState(initFieldValidity);
+    const [ cardType, setCardType ] : [ CardType, (CardType) => CardType ] = useState(DEFAULT_CARD_TYPE);
     const [ generalStyle, inputStyle ] = getStyles(styleObject);
-    const [ cardType, setCardType ] = useState(DEFAULT_CARD_TYPE);
     const numberRef = useRef();
     const expiryRef = useRef();
     const cvvRef = useRef();
@@ -69,6 +75,31 @@ export function CardField({ cspNonce, onChange, styleObject = {}, placeholder = 
     useEffect(() => {
         autoFocusRef(numberRef);
     }, []);
+
+    useEffect(() => {
+        const { field, errors } = gqlErrorsObject;
+
+        if (field === CARD_FIELD_TYPE.NUMBER) {
+            const hasGQLErrors = errors.length > 0;
+            if (hasGQLErrors) {
+                setNumberValidity({ isPotentiallyValid: false, isValid: false });
+            }
+        }
+
+        if (field === CARD_FIELD_TYPE.EXPIRY) {
+            const hasGQLErrors = errors.length > 0;
+            if (hasGQLErrors) {
+                setExpiryValidity({ isPotentiallyValid: false, isValid: false });
+            }
+        }
+
+        if (field === CARD_FIELD_TYPE.CVV) {
+            const hasGQLErrors = errors.length > 0;
+            if (hasGQLErrors) {
+                setCvvValidity({ isPotentiallyValid: false, isValid: false });
+            }
+        }
+    }, [ gqlErrorsObject ]);
    
     useEffect(() => {
 
@@ -76,7 +107,7 @@ export function CardField({ cspNonce, onChange, styleObject = {}, placeholder = 
 
         setIsValid(valid);
 
-        const errors = setErrors({ isNumberValid: numberValidity.isValid, isCvvValid: cvvValidity.isValid, isExpiryValid: expiryValidity.isValid });
+        const errors = setErrors({ isNumberValid: numberValidity.isValid, isCvvValid: cvvValidity.isValid, isExpiryValid: expiryValidity.isValid, gqlErrorsObject });
 
         onChange({ value: { number, cvv, expiry }, valid, errors });
 
@@ -104,10 +135,11 @@ export function CardField({ cspNonce, onChange, styleObject = {}, placeholder = 
 
             <CardNumber
                 ref={ numberRef }
+                autocomplete={ autocomplete }
                 navigation={ cardNumberNavivation }
                 type='text'
                 // eslint-disable-next-line react/forbid-component-props
-                className={ numberValidity.isPossibleValid || numberValidity.isValid ? 'number valid' : 'number invalid' }
+                className={ `number ${ numberValidity.isPotentiallyValid || numberValidity.isValid ? 'valid' : 'invalid' }` }
                 // eslint-disable-next-line react/forbid-component-props
                 style={ inputStyle }
                 allowNavigation={ true }
@@ -119,33 +151,35 @@ export function CardField({ cspNonce, onChange, styleObject = {}, placeholder = 
 
             <CardExpiry
                 ref={ expiryRef }
+                autocomplete={ autocomplete }
                 navigation={ cardExpiryNavivation }
                 type='text'
                 // eslint-disable-next-line react/forbid-component-props
-                className={ expiryValidity.isPossibleValid || expiryValidity.isValid ? 'expiry valid' : 'expiry invalid' }
+                className={ `expiry ${ expiryValidity.isPotentiallyValid || expiryValidity.isValid ? 'valid' : 'invalid' }` }
                 // eslint-disable-next-line react/forbid-component-props
                 style={ inputStyle }
                 allowNavigation={ true }
                 placeholder={ placeholder.expiry ?? DEFAULT_PLACEHOLDERS.expiry }
                 maxLength='7'
                 onChange={ ({ maskedDate } : CardExpiryChangeEvent) => setExpiry(convertDateFormat(maskedDate)) }
-                onValidityChange={ (expiryValidityity : FieldValidity) => setExpiryValidity({ ...expiryValidityity }) }
+                onValidityChange={ (validity : FieldValidity) => setExpiryValidity({ ...validity }) }
             />
 
             <CardCVV
                 ref={ cvvRef }
+                autocomplete={ autocomplete }
                 navigation={ cardCvvNavivation }
                 type='text'
                 cardType={ cardType }
                 // eslint-disable-next-line react/forbid-component-props
-                className={ cvvValidity.isPossibleValid || cvvValidity.isValid ? 'cvv valid' : 'cvv invalid' }
+                className={ `cvv ${ cvvValidity.isPotentiallyValid || cvvValidity.isValid ? 'valid' : 'invalid' }` }
                 // eslint-disable-next-line react/forbid-component-props
                 style={ inputStyle }
                 allowNavigation={ true }
                 placeholder={ placeholder.cvv ?? DEFAULT_PLACEHOLDERS.cvv }
                 maxLength={ getCvvLength(cardType) }
                 onChange={ ({ cardCvv } : CardCvvChangeEvent) => setCvv(cardCvv) }
-                onValidityChange={ (cvvValidityity : FieldValidity) => setCvvValidity({ ...cvvValidityity }) }
+                onValidityChange={ (validity : FieldValidity) => setCvvValidity({ ...validity }) }
             />
         </Fragment>
     );
@@ -153,24 +187,38 @@ export function CardField({ cspNonce, onChange, styleObject = {}, placeholder = 
 
 type CardNumberFieldProps = {|
     cspNonce : string,
-    onChange : ({| value : string, valid : boolean |}) => void,
+    onChange : ({| value : string, valid : boolean, errors : [$Values<typeof CARD_ERRORS>] | [] |}) => void,
     styleObject : CardStyle,
-   placeholder : {| number? : string, expiry? : string, cvv? : string  |}
+    placeholder : {| number? : string, expiry? : string, cvv? : string, name? : string  |},
+    autoFocusRef : (mixed) => void,
+    autocomplete? : string,
+    gqlErrors : []
 |};
 
-export function CardNumberField({ cspNonce, onChange, styleObject = {}, placeholder = {} } : CardNumberFieldProps) : mixed {
-    const [ number, setNumber ] = useState('');
-    const [ numberValidity, setNumberValidity ] = useState(true);
+export function CardNumberField({ cspNonce, onChange, styleObject = {}, placeholder = {}, autoFocusRef, autocomplete, gqlErrors = [] } : CardNumberFieldProps) : mixed {
+    const [ number, setNumber ] : [ string, (string) => string ] = useState('');
+    const [ numberValidity, setNumberValidity ] : [ FieldValidity, (FieldValidity) => FieldValidity ] = useState(initFieldValidity);
     const [ generalStyle, inputStyle ] = getStyles(styleObject);
+    const numberRef = useRef();
 
     const composedStyles = { ...{ input: DEFAULT_INPUT_STYLE },  ...generalStyle };
+    const { isValid, isPotentiallyValid } = numberValidity;
 
     useEffect(() => {
-        setNumberValidity(number);
-        const valid = Boolean(number);
-        const value = number;
-        onChange({ value, valid });
-    }, [ number ]);
+        autoFocusRef(numberRef);
+    }, []);
+
+    useEffect(() => {
+        const hasGQLErrors = gqlErrors.length > 0;
+        if (hasGQLErrors) {
+            setNumberValidity({ isPotentiallyValid: false, isValid: false });
+        }
+    }, [ gqlErrors ]);
+
+    useEffect(() => {
+        const errors = setErrors({ isNumberValid: numberValidity.isValid, gqlErrorsObject: { field: CARD_FIELD_TYPE.NUMBER, errors: gqlErrors } });
+        onChange({ value: number, valid: numberValidity.isValid, errors });
+    }, [ number, isValid, isPotentiallyValid ]);
 
     return (
         <Fragment>
@@ -179,9 +227,11 @@ export function CardNumberField({ cspNonce, onChange, styleObject = {}, placehol
             </style>
 
             <CardNumber
+                ref={ numberRef }
                 type='text'
+                autocomplete={ autocomplete }
                 // eslint-disable-next-line react/forbid-component-props
-                className={ numberValidity.isPossibleValid ? 'number valid' : 'number invalid' }
+                className={ `number ${ numberValidity.isPotentiallyValid || numberValidity.isValid ? 'valid' : 'invalid' }` }
                 // eslint-disable-next-line react/forbid-component-props
                 style={ inputStyle }
                 placeholder={ placeholder.number ?? DEFAULT_PLACEHOLDERS.number }
@@ -195,23 +245,39 @@ export function CardNumberField({ cspNonce, onChange, styleObject = {}, placehol
 
 type CardExpiryFieldProps = {|
     cspNonce : string,
-    onChange : ({| value : string, valid : boolean |}) => void,
+    onChange : ({| value : string, valid : boolean, errors : [$Values<typeof CARD_ERRORS>] | [] |}) => void,
     styleObject : CardStyle,
-    placeholder : {| number? : string, expiry? : string, cvv? : string  |}
+    placeholder : {| number? : string, expiry? : string, cvv? : string, name? : string  |},
+    autoFocusRef : (mixed) => void,
+    autocomplete? : string,
+    gqlErrors : []
 |};
 
-export function CardExpiryField({ cspNonce, onChange, styleObject = {}, placeholder = {} } : CardExpiryFieldProps) : mixed {
-    const [ expiry, setExpiry ] = useState('');
-    const [ expiryValidity, setExpiryValidity ] = useState(true);
+export function CardExpiryField({ cspNonce, onChange, styleObject = {}, placeholder = {}, autoFocusRef, autocomplete, gqlErrors = [] } : CardExpiryFieldProps) : mixed {
+    const [ expiry, setExpiry ] : [ string, (string) => string ] = useState('');
+    const [ expiryValidity, setExpiryValidity ] : [ FieldValidity, (FieldValidity) => FieldValidity ] = useState(initFieldValidity);
     const [ generalStyle, inputStyle ] = getStyles(styleObject);
+    const expiryRef = useRef();
 
     const composedStyles = { ...{ input: DEFAULT_INPUT_STYLE },  ...generalStyle };
+    const { isValid, isPotentiallyValid } = expiryValidity;
 
     useEffect(() => {
-        setExpiryValidity(expiry);
-        const valid = Boolean(expiry);
-        onChange({ value: expiry, valid });
-    }, [ expiry ]);
+        autoFocusRef(expiryRef);
+    }, []);
+
+    useEffect(() => {
+        const hasGQLErrors = gqlErrors.length > 0;
+        if (hasGQLErrors) {
+            setExpiryValidity({ isPotentiallyValid: false, isValid: false });
+        }
+    }, [ gqlErrors ]);
+    
+    useEffect(() => {
+        const errors = setErrors({ isExpiryValid: expiryValidity.isValid });
+
+        onChange({ value: expiry, valid: expiryValidity.isValid, errors });
+    }, [ expiry, isValid, isPotentiallyValid ]);
 
     return (
         <Fragment>
@@ -220,38 +286,56 @@ export function CardExpiryField({ cspNonce, onChange, styleObject = {}, placehol
             </style>
 
             <CardExpiry
+                ref={ expiryRef }
                 type='text'
+                autocomplete={ autocomplete }
                 // eslint-disable-next-line react/forbid-component-props
-                className={ expiryValidity ? 'expiry valid' : 'expiry invalid' }
+                className={ `expiry ${ expiryValidity.isPotentiallyValid || expiryValidity.isValid ? 'valid' : 'invalid' }` }
                 // eslint-disable-next-line react/forbid-component-props
                 style={ inputStyle }
                 placeholder={ placeholder.expiry ?? DEFAULT_PLACEHOLDERS.expiry }
                 maxLength='7'
-                onChange={ ({ maskedDate } : CardExpiryChangeEvent) => setExpiry(maskedDate) }
-                onValidityChange={ (expiryValidityity : boolean) => setExpiryValidity(expiryValidityity) }
+                onChange={ ({ maskedDate } : CardExpiryChangeEvent) => setExpiry(convertDateFormat(maskedDate)) }
+                onValidityChange={ (validity : FieldValidity) => setExpiryValidity(validity) }
             />
         </Fragment>
     );
 }
 type CardCvvFieldProps = {|
     cspNonce : string,
-    onChange : ({| value : string, valid : boolean |}) => void,
+    onChange : ({| value : string, valid : boolean, errors : [$Values<typeof CARD_ERRORS>] | [] |}) => void,
     styleObject : CardStyle,
-    placeholder : {| number? : string, expiry? : string, cvv? : string  |}
+    placeholder : {| number? : string, expiry? : string, cvv? : string, name? : string  |},
+    autoFocusRef : (mixed) => void,
+    autocomplete? : string,
+    gqlErrors : []
 |};
 
-export function CardCVVField({ cspNonce, onChange, styleObject = {}, placeholder = {} } : CardCvvFieldProps) : mixed {
-    const [ cvv, setCvv ] = useState('');
-    const [ cvvValidity, setCvvValidity ] = useState(true);
+export function CardCVVField({ cspNonce, onChange, styleObject = {}, placeholder = {}, autoFocusRef, autocomplete, gqlErrors = [] } : CardCvvFieldProps) : mixed {
+    const [ cvv, setCvv ] : [ string, (string) => string ] = useState('');
+    const [ cvvValidity, setCvvValidity ] : [ FieldValidity, (FieldValidity) => FieldValidity ] = useState(initFieldValidity);
     const [ generalStyle, inputStyle ] = getStyles(styleObject);
+    const cvvRef = useRef();
     
     const composedStyles = { ...{ input: DEFAULT_INPUT_STYLE },  ...generalStyle };
+    const { isValid, isPotentiallyValid } = cvvValidity;
 
     useEffect(() => {
-        setCvvValidity(cvv);
-        const valid = Boolean(cvv);
-        onChange({ value: cvv, valid });
-    }, [ cvv ]);
+        autoFocusRef(cvvRef);
+    }, []);
+
+    useEffect(() => {
+        const hasGQLErrors = gqlErrors.length > 0;
+        if (hasGQLErrors) {
+            setCvvValidity({ isPotentiallyValid: false, isValid: false });
+        }
+    }, [ gqlErrors ]);
+
+    useEffect(() => {
+        const errors = setErrors({ isCvvValid: cvvValidity.isValid });
+
+        onChange({ value: cvv, valid: cvvValidity.isValid, errors });
+    }, [ cvv, isValid, isPotentiallyValid  ]);
 
     return (
         <Fragment>
@@ -260,15 +344,74 @@ export function CardCVVField({ cspNonce, onChange, styleObject = {}, placeholder
             </style>
 
             <CardCVV
+                ref={ cvvRef }
                 type='text'
+                autocomplete={ autocomplete }
                 // eslint-disable-next-line react/forbid-component-props
-                className={ cvvValidity ? 'cvv valid' : 'cvv invalid' }
+                className={ `cvv ${ cvvValidity.isPotentiallyValid || cvvValidity.isValid ? 'valid' : 'invalid' }` }
                 // eslint-disable-next-line react/forbid-component-props
                 style={ inputStyle }
                 placeholder={ placeholder.cvv ?? DEFAULT_PLACEHOLDERS.cvv }
                 maxLength='4'
                 onChange={ ({ cardCvv } : CardCvvChangeEvent) => setCvv(cardCvv) }
-                onValidityChange={ (cvvValidityity : boolean) => setCvvValidity(cvvValidityity) }
+                onValidityChange={ (validity : FieldValidity) => setCvvValidity(validity) }
+            />
+        </Fragment>
+    );
+}
+
+type CardNameFieldProps = {|
+    cspNonce : string,
+    onChange : ({| value : string, valid : boolean, errors : [$Values<typeof CARD_ERRORS>] | [] |}) => void,
+    styleObject : CardStyle,
+    placeholder : {| number? : string, expiry? : string, cvv? : string, name? : string  |},
+    autoFocusRef : (mixed) => void,
+    gqlErrors : []
+|};
+
+export function CardNameField({ cspNonce, onChange, styleObject = {}, placeholder = {}, autoFocusRef, gqlErrors = [] } : CardNameFieldProps) : mixed {
+    const [ name, setName ] : [ string, (string) => string ] = useState('');
+    const [ nameValidity, setNameValidity ] : [ FieldValidity, (FieldValidity) => FieldValidity ] = useState(initFieldValidity);
+    const [ generalStyle, inputStyle ] = getStyles(styleObject);
+    const nameRef = useRef();
+    
+    const composedStyles = { ...{ input: DEFAULT_INPUT_STYLE },  ...generalStyle };
+    const { isValid, isPotentiallyValid } = nameValidity;
+
+    useEffect(() => {
+        autoFocusRef(nameRef);
+    }, []);
+
+    useEffect(() => {
+        const hasGQLErrors = gqlErrors.length > 0;
+        if (hasGQLErrors) {
+            setNameValidity({ isPotentiallyValid: false, isValid: false });
+        }
+    }, [ gqlErrors ]);
+
+    useEffect(() => {
+        const errors = setErrors({ isNameValid: nameValidity.isValid });
+
+        onChange({ value: name, valid: nameValidity.isValid, errors });
+    }, [ name, isValid, isPotentiallyValid  ]);
+
+    return (
+        <Fragment>
+            <style nonce={ cspNonce }>
+                {styleToString(composedStyles)}
+            </style>
+
+            <CardName
+                ref={ nameRef }
+                type='text'
+                // eslint-disable-next-line react/forbid-component-props
+                className={ `name ${ nameValidity.isPotentiallyValid || nameValidity.isValid ? 'valid' : 'invalid' }` }
+                // eslint-disable-next-line react/forbid-component-props
+                style={ inputStyle }
+                placeholder={ placeholder.name ?? DEFAULT_PLACEHOLDERS.name }
+                maxLength='255'
+                onChange={ ({ cardName } : CardNameChangeEvent) => setName(cardName) }
+                onValidityChange={ (validity : FieldValidity) => setNameValidity(validity) }
             />
         </Fragment>
     );

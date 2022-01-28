@@ -10,20 +10,40 @@ export const CARD_FIELD_TYPE = {
     SINGLE: 'single',
     NUMBER: 'number',
     CVV:    'cvv',
-    EXPIRY: 'expiry'
+    EXPIRY: 'expiry',
+    NAME:   'name'
+};
+
+export const GQL_ERRORS = {
+    '/payment_source/card/number': {
+        'VALIDATION_ERROR':           ('INVALID_NUMBER' : 'INVALID_NUMBER'),
+        'MISSING_REQUIRED_PARAMETER': ('MISSING_NUMBER' : 'MISSING_NUMBER')
+    },
+    '/payment_source/card/expiry': {
+        'INVALID_PARAMETER_SYNTAX':   ('INVALID_EXPIRATION_DATE_FORMAT' : 'INVALID_EXPIRATION_DATE_FORMAT'),
+        'INVALID_STRING_LENGTH':      ('INVALID_EXPIRATION_DATE_LENGTH' : 'INVALID_EXPIRATION_DATE_LENGTH'),
+        'CARD_EXPIRED':               ('CARD_EXPIRED' : 'CARD_EXPIRED'),
+        'MISSING_REQUIRED_PARAMETER': ('MISSING_EXPIRATION_DATE' : 'MISSING_EXPIRATION_DATE')
+    },
+    '/payment_source/card/security_code': {
+        'VALIDATION_ERROR':           ('INVALID_SECURITY_CODE' : 'INVALID_SECURITY_CODE')
+    },
+    'TRANSACTION_REFUSED': ('TRANSACTION_REJECTED' : 'TRANSACTION_REJECTED')
 };
 
 export const CARD_ERRORS = {
     INVALID_NUMBER:       ('INVALID_NUMBER' : 'INVALID_NUMBER'),
     INVALID_EXPIRY:       ('INVALID_EXPIRY' : 'INVALID_EXPIRY'),
-    INVALID_CVV:          ('INVALID_CVV' : 'INVALID_CVV')
+    INVALID_CVV:          ('INVALID_CVV' : 'INVALID_CVV'),
+    INVALID_NAME:         ('INVALID_NAME' : 'INVALID_NAME')
 };
 
 export const CARD_FIELD_TYPE_TO_FRAME_NAME : {| [$Values<typeof CARD_FIELD_TYPE>] : $Values<typeof FRAME_NAME> |} = {
     [ CARD_FIELD_TYPE.SINGLE ]: FRAME_NAME.CARD_FIELD,
     [ CARD_FIELD_TYPE.NUMBER ]: FRAME_NAME.CARD_NUMBER_FIELD,
     [ CARD_FIELD_TYPE.CVV ]:    FRAME_NAME.CARD_CVV_FIELD,
-    [ CARD_FIELD_TYPE.EXPIRY ]: FRAME_NAME.CARD_EXPIRY_FIELD
+    [ CARD_FIELD_TYPE.EXPIRY ]: FRAME_NAME.CARD_EXPIRY_FIELD,
+    [ CARD_FIELD_TYPE.NAME ]:   FRAME_NAME.CARD_NAME_FIELD
 };
 
 export const FIELD_STYLE : FieldStyle = {
@@ -108,6 +128,7 @@ export const DEFAULT_INPUT_STYLE : FieldStyle = {
     border:     'none',
     background: 'transparent',
     height:     '100%',
+    width:      '100%',
     fontFamily: 'monospace',
     fontSize:   '50vh',
     display:    'inline-block'
@@ -130,5 +151,10 @@ export const DEFAULT_STYLE = {
 export const DEFAULT_PLACEHOLDERS : CardPlaceholder = {
     number: 'Card number',
     expiry: 'MM/YY',
-    cvv:    'CVV'
+    cvv:    'CVV',
+    name:   'Cardholder name'
 };
+
+export const VALID_EXTRA_FIELDS = [
+    'billingAddress'
+];
